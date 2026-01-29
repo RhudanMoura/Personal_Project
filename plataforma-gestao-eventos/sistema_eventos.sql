@@ -28,6 +28,7 @@ DELIMITER $$
 -- Procedimentos
 --
 DROP PROCEDURE IF EXISTS `CleanOldCartItems`$$
+<<<<<<< HEAD
 CREATE DEFINER=`root`@`localhost` PROCEDURE `CleanOldCartItems` ()   BEGIN
     DELETE FROM cart WHERE added_at < DATE_SUB(NOW(), INTERVAL 1 HOUR);
 END$$
@@ -87,6 +88,67 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `CreatePurchase` (IN `p_user_id` INT
         -- SIGNAL: Lança um erro personalizado se não há bilhetes suficientes
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Não há bilhetes suficientes disponíveis';
     END IF;
+=======
+CREATE DEFINER=`root`@`localhost` PROCEDURE `CleanOldCartItems` ()   BEGIN
+    DELETE FROM cart WHERE added_at < DATE_SUB(NOW(), INTERVAL 1 HOUR);
+END$$
+
+DROP PROCEDURE IF EXISTS `CreatePurchase`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `CreatePurchase` (IN `p_user_id` INT, IN `p_event_id` INT, IN `p_quantity` INT, IN `p_attendee_name` VARCHAR(200), IN `p_attendee_email` VARCHAR(255))   BEGIN
+    -- DECLARE: Variáveis locais para armazenar valores temporários
+    DECLARE v_event_price DECIMAL(10,2);    -- Preço do evento
+    DECLARE v_available_tickets INT;        -- Bilhetes disponíveis
+    DECLARE v_purchase_code VARCHAR(20);    -- Código da compra
+    DECLARE v_purchase_id INT;              -- ID da compra criada
+    
+    -- Verificar disponibilidade de bilhetes
+    -- SELECT INTO: Armazena resultado da query nas variáveis
+    SELECT price, available_tickets INTO v_event_price, v_available_tickets
+    FROM events 
+    WHERE id = p_event_id AND is_active = 1; -- Apenas eventos ativos
+    
+    -- IF: Verifica se há bilhetes suficientes
+    IF v_available_tickets >= p_quantity THEN
+        -- SET: Atribui valor à variável
+        -- CONCAT: Concatena strings para criar código único
+        -- NOW(): Data/hora atual
+        -- RAND(): Número aleatório para garantir unicidade
+        -- LPAD: Preenche com zeros à esquerda
+        SET v_purchase_code = CONCAT('PUR', DATE_FORMAT(NOW(), '%Y%m%d'), LPAD(FLOOR(RAND() * 10000), 4, '0'));
+        
+        -- Inserir registro na tabela purchases
+        INSERT INTO purchases (purchase_code, user_id, total_amount)
+        VALUES (v_purchase_code, p_user_id, v_event_price * p_quantity);
+        
+        -- LAST_INSERT_ID(): Retorna o ID do último registro inserido
+        SET v_purchase_id = LAST_INSERT_ID();
+        
+        -- Inserir bilhetes individuais
+        -- Usa uma subquery para gerar múltiplos registros baseado na quantidade
+        INSERT INTO tickets (purchase_id, event_id, ticket_code, attendee_name, attendee_email, price)
+        SELECT 
+            v_purchase_id,                                  -- ID da compra
+            p_event_id,                                     -- ID do evento
+            CONCAT('TICK', DATE_FORMAT(NOW(), '%Y%m%d'), LPAD(FLOOR(RAND() * 100000), 5, '0')), -- Código único
+            p_attendee_name,                                -- Nome do participante
+            p_attendee_email,                               -- Email do participante
+            v_event_price                                   -- Preço do bilhete
+        FROM (SELECT 1 AS n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) numbers
+        -- WHERE: Limita a quantidade de bilhetes inseridos
+        WHERE numbers.n <= p_quantity;
+        
+        -- Atualizar contador de bilhetes disponíveis no evento
+        UPDATE events 
+        SET available_tickets = available_tickets - p_quantity
+        WHERE id = p_event_id;
+        
+        -- SELECT: Retorna resultados para o chamador
+        SELECT v_purchase_id as purchase_id, v_purchase_code as purchase_code;
+    ELSE
+        -- SIGNAL: Lança um erro personalizado se não há bilhetes suficientes
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Não há bilhetes suficientes disponíveis';
+    END IF;
+>>>>>>> 935b50680913ed91d802329b889de2b153c252da
 END$$
 
 DELIMITER ;
@@ -133,8 +195,13 @@ CREATE TABLE `contacts` (
 --
 DROP TRIGGER IF EXISTS `before_contacts_update`;
 DELIMITER $$
+<<<<<<< HEAD
 CREATE TRIGGER `before_contacts_update` BEFORE UPDATE ON `contacts` FOR EACH ROW BEGIN
     SET NEW.updated_at = NOW();
+=======
+CREATE TRIGGER `before_contacts_update` BEFORE UPDATE ON `contacts` FOR EACH ROW BEGIN
+    SET NEW.updated_at = NOW();
+>>>>>>> 935b50680913ed91d802329b889de2b153c252da
 END
 $$
 DELIMITER ;
@@ -429,6 +496,7 @@ INSERT INTO `tickets` (`id`, `purchase_id`, `event_id`, `ticket_code`, `attendee
 --
 DROP TRIGGER IF EXISTS `after_ticket_delete`;
 DELIMITER $$
+<<<<<<< HEAD
 CREATE TRIGGER `after_ticket_delete` AFTER DELETE ON `tickets` FOR EACH ROW BEGIN
     -- TAREFA A: Repor o Estoque (Aumenta +1 no evento)
     UPDATE events 
@@ -439,15 +507,34 @@ CREATE TRIGGER `after_ticket_delete` AFTER DELETE ON `tickets` FOR EACH ROW BEGI
     UPDATE purchases
     SET total_amount = total_amount - OLD.price
     WHERE id = OLD.purchase_id;
+=======
+CREATE TRIGGER `after_ticket_delete` AFTER DELETE ON `tickets` FOR EACH ROW BEGIN
+    -- TAREFA A: Repor o Estoque (Aumenta +1 no evento)
+    UPDATE events 
+    SET available_tickets = available_tickets + 1 
+    WHERE id = OLD.event_id;
+
+    -- TAREFA B: Atualizar o Dinheiro (Subtrai o preço da compra original)
+    UPDATE purchases
+    SET total_amount = total_amount - OLD.price
+    WHERE id = OLD.purchase_id;
+>>>>>>> 935b50680913ed91d802329b889de2b153c252da
 END
 $$
 DELIMITER ;
 DROP TRIGGER IF EXISTS `before_ticket_insert`;
 DELIMITER $$
+<<<<<<< HEAD
 CREATE TRIGGER `before_ticket_insert` BEFORE INSERT ON `tickets` FOR EACH ROW BEGIN
     IF NEW.ticket_code IS NULL THEN
         SET NEW.ticket_code = CONCAT('TICK', DATE_FORMAT(NOW(), '%Y%m%d'), LPAD(FLOOR(RAND() * 100000), 5, '0'));
     END IF;
+=======
+CREATE TRIGGER `before_ticket_insert` BEFORE INSERT ON `tickets` FOR EACH ROW BEGIN
+    IF NEW.ticket_code IS NULL THEN
+        SET NEW.ticket_code = CONCAT('TICK', DATE_FORMAT(NOW(), '%Y%m%d'), LPAD(FLOOR(RAND() * 100000), 5, '0'));
+    END IF;
+>>>>>>> 935b50680913ed91d802329b889de2b153c252da
 END
 $$
 DELIMITER ;
