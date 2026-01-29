@@ -1,0 +1,6 @@
+Acesso Administrativo
+
+Para efeitos de avaliação, o sistema possui um administrador registado:
+
+• Email: admin@eventos.pt
+• Senha: admin123
